@@ -156,12 +156,12 @@ saveButton.MouseButton1Click:Connect(function()
     if character and character:FindFirstChild("HumanoidRootPart") then
         if spawnMode then
             savedSpawn = character.HumanoidRootPart.CFrame
-            saveButton.Text = "✅ Spawn sauvé !"
+            saveButton.Text = "✅ Spawn saved !"
             task.wait(1.5)
             saveButton.Text = "🏠 Save Spawn"
         else
             savedPosition = character.HumanoidRootPart.CFrame
-            saveButton.Text = "✅ Position sauvée !"
+            saveButton.Text = "✅ saved position !"
             task.wait(1.5)
             saveButton.Text = "💾 Save TP"
         end
@@ -205,7 +205,7 @@ tpButton.MouseButton1Click:Connect(function()
         else
             tpButton.Text = "⚪ Désactivé"
             task.wait(1.5)
-            tpButton.Text = "✅ Apply"
+            tpButton.Text = "✅ Appliquer"
         end
     else
         if savedPosition then
