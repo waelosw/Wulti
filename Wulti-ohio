@@ -1,0 +1,451 @@
+-- OHIO TP + SETUP Script (Mobile + PC)
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+
+-- Vérification du jeu Ohio
+local GAME_ID = 7239319209
+if game.PlaceId ~= GAME_ID then
+   local screenGui = Instance.new("ScreenGui")
+   screenGui.Name = "WrongGame"
+   screenGui.ResetOnSpawn = false
+   screenGui.Parent = game.CoreGui
+
+   local errFrame = Instance.new("Frame")
+   errFrame.Size = UDim2.new(0, 240, 0, 70)
+   errFrame.Position = UDim2.new(0.5, -120, 0.5, -35)
+   errFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+   errFrame.BorderSizePixel = 0
+   errFrame.Parent = screenGui
+
+   local errCorner = Instance.new("UICorner")
+   errCorner.CornerRadius = UDim.new(0, 8)
+   errCorner.Parent = errFrame
+
+   local errLabel = Instance.new("TextLabel")
+   errLabel.Size = UDim2.new(1, -20, 1, 0)
+   errLabel.Position = UDim2.new(0, 10, 0, 0)
+   errLabel.BackgroundTransparency = 1
+   errLabel.Text = "❌ Ce script fonctionne\nuniquement sur Ohio !"
+   errLabel.TextColor3 = Color3.fromRGB(255, 80, 80)
+   errLabel.TextSize = 13
+   errLabel.Font = Enum.Font.GothamBold
+   errLabel.TextWrapped = true
+   errLabel.Parent = errFrame
+
+   task.wait(4)
+   screenGui:Destroy()
+   return
+end
+
+-- ============================================
+-- DONNÉES
+-- ============================================
+
+local destinations = {
+   { emoji = "🔫", label = "Armes",       x = 959.16,  y = 475.11, z = 438.91   },
+   { emoji = "👮", label = "Police",      x = 653.01,  y = 9.04,   z = -902.65  },
+   { emoji = "🪑", label = "Meubles",     x = 898.81,  y = 6.25,   z = -767.10  },
+   { emoji = "🏦", label = "Banque cash", x = 1116.74, y = 8.22,   z = -328.11  },
+   { emoji = "🪖", label = "Militaire",   x = 727.41,  y = 65.02,  z = -1399.14 },
+   { emoji = "💎", label = "Diamant",     x = 1603.73, y = 8.37,   z = -694.60  },
+}
+
+local colors = {
+   Color3.fromRGB(200, 50,  50),
+   Color3.fromRGB(0,   120, 255),
+   Color3.fromRGB(180, 100, 0),
+   Color3.fromRGB(0,   170, 100),
+   Color3.fromRGB(120, 0,   200),
+   Color3.fromRGB(200, 160, 0),
+}
+
+-- ============================================
+-- SETUP : SOL + ARMES
+-- ============================================
+
+local setupActive = false
+local originalFloorPos = nil
+local originalWeaponCFrames = {}
+
+local center = Vector3.new(959.16, 475.11, 438.91)
+
+local weaponList = {
+   {name = "M4A1",          pos = Vector3.new(960.41, 475.11, 457.99)},
+   {name = "MP7",           pos = Vector3.new(971.12, 475.11, 458.56)},
+   {name = "Military Vest", pos = Vector3.new(981.18, 475.11, 459.31)},
+   {name = "Minigun",       pos = Vector3.new(948.40, 475.11, 459.98)},
+   {name = "P90",           pos = Vector3.new(938.40, 475.11, 459.63)},
+   {name = "Uzi",           pos = Vector3.new(930.89, 475.11, 449.20)},
+   {name = "Tommy Gun",     pos = Vector3.new(930.03, 475.11, 439.29)},
+   {name = "C4",            pos = Vector3.new(929.50, 475.11, 427.97)},
+   {name = "C5",            pos = Vector3.new(942.20, 475.11, 420.71)},
+   {name = "AK-47",         pos = Vector3.new(952.01, 475.11, 420.49)},
+   {name = "AUG",           pos = Vector3.new(962.64, 475.11, 419.86)},
+   {name = "AS Val",        pos = Vector3.new(972.22, 475.11, 420.03)},
+   {name = "AWP",           pos = Vector3.new(981.82, 475.11, 419.70)},
+   {name = "Acid Gun",      pos = Vector3.new(992.51, 475.11, 420.24)},
+}
+
+local function findFloor()
+   for _, obj in ipairs(workspace:GetDescendants()) do
+       if obj:IsA("BasePart") and obj.Name == "Part" then
+           local s = obj.Size
+           if math.abs(s.X - 42.3) < 0.5 and
+              math.abs(s.Y - 2) < 0.5 and
+              math.abs(s.Z - 72.651) < 0.5 then
+               return obj
+           end
+       end
+   end
+   return nil
+end
+
+local function findInItemsOnSale(name)
+   local itemsOnSale = workspace:FindFirstChild("ItemsOnSale", true)
+   if not itemsOnSale then
+       for _, obj in ipairs(workspace:GetDescendants()) do
+           if obj.Name == name then return obj end
+       end
+       return nil
+   end
+   for _, obj in ipairs(itemsOnSale:GetChildren()) do
+       if obj.Name == name then return obj end
+   end
+   return nil
+end
+
+local function moveWeapon(obj, position)
+   local lookDir = (position - center)
+   if lookDir.Magnitude > 0 then lookDir = lookDir.Unit end
+   local cf = CFrame.new(position, position + lookDir)
+
+   if obj:IsA("Model") then
+       if obj.PrimaryPart then
+           obj:SetPrimaryPartCFrame(cf)
+       else
+           for _, part in ipairs(obj:GetDescendants()) do
+               if part:IsA("BasePart") then
+                   local offset = position - part.Position
+                   for _, p in ipairs(obj:GetDescendants()) do
+                       if p:IsA("BasePart") then
+                           p.CFrame = CFrame.new(p.Position + offset, p.Position + offset + lookDir)
+                       end
+                   end
+                   break
+               end
+           end
+       end
+   elseif obj:IsA("BasePart") then
+       obj.CFrame = cf
+   end
+end
+
+local function getObjectCFrame(obj)
+   if obj:IsA("Model") then
+       if obj.PrimaryPart then return obj.PrimaryPart.CFrame end
+       for _, p in ipairs(obj:GetDescendants()) do
+           if p:IsA("BasePart") then return p.CFrame end
+       end
+   elseif obj:IsA("BasePart") then
+       return obj.CFrame
+   end
+   return nil
+end
+
+local function restoreWeapon(obj, cf)
+   if obj:IsA("Model") then
+       if obj.PrimaryPart then
+           obj:SetPrimaryPartCFrame(cf)
+       else
+           for _, part in ipairs(obj:GetDescendants()) do
+               if part:IsA("BasePart") then
+                   local offset = cf.Position - part.Position
+                   for _, p in ipairs(obj:GetDescendants()) do
+                       if p:IsA("BasePart") then
+                           p.CFrame = CFrame.new(p.Position + offset)
+                       end
+                   end
+                   break
+               end
+           end
+       end
+   elseif obj:IsA("BasePart") then
+       obj.CFrame = cf
+   end
+end
+
+local function activateSetup(btn)
+   local floor = findFloor()
+   if floor then
+       originalFloorPos = floor.Position
+       floor.Position = Vector3.new(963.71, 471.11, 439.59)
+   end
+   originalWeaponCFrames = {}
+   for _, weapon in ipairs(weaponList) do
+       local obj = findInItemsOnSale(weapon.name)
+       if obj then
+           local cf = getObjectCFrame(obj)
+           if cf then originalWeaponCFrames[weapon.name] = cf end
+           pcall(moveWeapon, obj, weapon.pos)
+       end
+   end
+   setupActive = true
+   btn.Text = "✅"
+   btn.BackgroundColor3 = Color3.fromRGB(0, 180, 80)
+end
+
+local function deactivateSetup(btn)
+   local floor = findFloor()
+   if floor and originalFloorPos then
+       floor.Position = originalFloorPos
+   end
+   for _, weapon in ipairs(weaponList) do
+       local obj = findInItemsOnSale(weapon.name)
+       local savedCF = originalWeaponCFrames[weapon.name]
+       if obj and savedCF then
+           pcall(restoreWeapon, obj, savedCF)
+       end
+   end
+   originalWeaponCFrames = {}
+   originalFloorPos = nil
+   setupActive = false
+   btn.Text = "⬜"
+   btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+end
+
+-- ============================================
+-- GUI
+-- ============================================
+
+local GUI_WIDTH    = 220
+local TITLE_H      = 30
+local LAST_TP_H    = 40
+local BTN_H        = 36
+local BTN_GAP      = 6
+local PADDING      = 10
+local SCROLL_MAX_H = 300
+local CONTENT_H    = #destinations * (BTN_H + BTN_GAP) - BTN_GAP + PADDING * 2
+local SCROLL_H     = math.min(CONTENT_H, SCROLL_MAX_H)
+local FULL_H       = TITLE_H + LAST_TP_H + SCROLL_H
+local MINI_H       = TITLE_H
+
+local isMinimized = false
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "WULTI TP"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = game.CoreGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, GUI_WIDTH, 0, FULL_H)
+mainFrame.Position = UDim2.new(0.5, -GUI_WIDTH / 2, 0.5, -FULL_H / 2)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.ClipsDescendants = true
+mainFrame.Parent = screenGui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 8)
+mainCorner.Parent = mainFrame
+
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, TITLE_H)
+titleBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+titleBar.BorderSizePixel = 0
+titleBar.Parent = mainFrame
+
+local titleCorner = Instance.new("UICorner")
+titleCorner.CornerRadius = UDim.new(0, 8)
+titleCorner.Parent = titleBar
+
+local patch = Instance.new("Frame")
+patch.Size = UDim2.new(1, 0, 0, 10)
+patch.Position = UDim2.new(0, 0, 1, -10)
+patch.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+patch.BorderSizePixel = 0
+patch.Parent = titleBar
+
+local titleLabel = Instance.new("TextLabel")
+titleLabel.Size = UDim2.new(1, -100, 1, 0)
+titleLabel.Position = UDim2.new(0, 10, 0, 0)
+titleLabel.BackgroundTransparency = 1
+titleLabel.Text = "🗺️ Wulti TP"
+titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+titleLabel.TextSize = 14
+titleLabel.Font = Enum.Font.GothamBold
+titleLabel.TextXAlignment = Enum.TextXAlignment.Left
+titleLabel.Parent = titleBar
+
+-- Bouton 🔫 TP Armes (noir) 
+local armeBtn = Instance.new("TextButton")
+armeBtn.Size = UDim2.new(0, 24, 0, 24)
+armeBtn.Position = UDim2.new(1, -90, 0.5, -12)
+armeBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+armeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+armeBtn.TextSize = 14
+armeBtn.Font = Enum.Font.GothamBold
+armeBtn.Text = "🔫"
+armeBtn.BorderSizePixel = 0
+armeBtn.Parent = titleBar
+
+local armeBtnCorner = Instance.new("UICorner")
+armeBtnCorner.CornerRadius = UDim.new(0, 4)
+armeBtnCorner.Parent = armeBtn
+
+armeBtn.MouseButton1Click:Connect(function()
+   local character = localPlayer.Character
+   if character and character:FindFirstChild("HumanoidRootPart") then
+       character.HumanoidRootPart.CFrame = CFrame.new(959.16, 475.11, 438.91)
+       lastTPLabel.Text = "🕓 Dernier TP : 🔫 Armes"
+       armeBtn.Text = "✅"
+       task.wait(1.2)
+       armeBtn.Text = "🔫"
+   end
+end)
+
+-- Bouton Setup (carré blanc)
+local setupBtn = Instance.new("TextButton")
+setupBtn.Size = UDim2.new(0, 24, 0, 24)
+setupBtn.Position = UDim2.new(1, -60, 0.5, -12)
+setupBtn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+setupBtn.TextColor3 = Color3.fromRGB(0, 0, 0)
+setupBtn.TextSize = 14
+setupBtn.Font = Enum.Font.GothamBold
+setupBtn.Text = "⬜"
+setupBtn.BorderSizePixel = 0
+setupBtn.Parent = titleBar
+
+local setupCorner = Instance.new("UICorner")
+setupCorner.CornerRadius = UDim.new(0, 4)
+setupCorner.Parent = setupBtn
+
+setupBtn.MouseButton1Click:Connect(function()
+   if not setupActive then
+       activateSetup(setupBtn)
+   else
+       deactivateSetup(setupBtn)
+   end
+end)
+
+-- Bouton minimiser
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 24, 0, 24)
+toggleBtn.Position = UDim2.new(1, -30, 0.5, -12)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+toggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+toggleBtn.TextSize = 16
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.Text = "–"
+toggleBtn.BorderSizePixel = 0
+toggleBtn.Parent = titleBar
+
+local toggleCorner = Instance.new("UICorner")
+toggleCorner.CornerRadius = UDim.new(0, 6)
+toggleCorner.Parent = toggleBtn
+
+local lastTPLabel = Instance.new("TextLabel")
+lastTPLabel.Size = UDim2.new(1, -20, 0, 30)
+lastTPLabel.Position = UDim2.new(0, 10, 0, TITLE_H + 5)
+lastTPLabel.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+lastTPLabel.TextColor3 = Color3.fromRGB(255, 200, 50)
+lastTPLabel.TextSize = 11
+lastTPLabel.Font = Enum.Font.Gotham
+lastTPLabel.Text = "🕓 Dernier TP : aucun"
+lastTPLabel.TextWrapped = true
+lastTPLabel.BorderSizePixel = 0
+lastTPLabel.Parent = mainFrame
+
+local lastTPCorner = Instance.new("UICorner")
+lastTPCorner.CornerRadius = UDim.new(0, 6)
+lastTPCorner.Parent = lastTPLabel
+
+local scrollFrame = Instance.new("ScrollingFrame")
+scrollFrame.Size = UDim2.new(1, 0, 0, SCROLL_H)
+scrollFrame.Position = UDim2.new(0, 0, 0, TITLE_H + LAST_TP_H)
+scrollFrame.BackgroundTransparency = 1
+scrollFrame.BorderSizePixel = 0
+scrollFrame.ScrollBarThickness = 4
+scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(100, 100, 100)
+scrollFrame.CanvasSize = UDim2.new(0, 0, 0, CONTENT_H)
+scrollFrame.Parent = mainFrame
+
+for i, dest in ipairs(destinations) do
+   local btn = Instance.new("TextButton")
+   btn.Size = UDim2.new(1, -20, 0, BTN_H)
+   btn.Position = UDim2.new(0, PADDING, 0, PADDING + (i - 1) * (BTN_H + BTN_GAP))
+   btn.BackgroundColor3 = colors[i] or Color3.fromRGB(80, 80, 80)
+   btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+   btn.TextSize = 13
+   btn.Font = Enum.Font.GothamBold
+   btn.BorderSizePixel = 0
+   btn.Text = dest.emoji .. "  " .. dest.label
+   btn.Parent = scrollFrame
+
+   local btnCorner = Instance.new("UICorner")
+   btnCorner.CornerRadius = UDim.new(0, 6)
+   btnCorner.Parent = btn
+
+   local originalText = btn.Text
+
+   btn.MouseButton1Click:Connect(function()
+       local character = localPlayer.Character
+       if character and character:FindFirstChild("HumanoidRootPart") then
+           character.HumanoidRootPart.CFrame = CFrame.new(dest.x, dest.y, dest.z)
+           lastTPLabel.Text = "🕓 Dernier TP : " .. dest.emoji .. " " .. dest.label
+           btn.Text = "✅ Téléporté !"
+           task.wait(1.2)
+           btn.Text = originalText
+       end
+   end)
+end
+
+toggleBtn.MouseButton1Click:Connect(function()
+   isMinimized = not isMinimized
+   if isMinimized then
+       lastTPLabel.Visible = false
+       scrollFrame.Visible = false
+       patch.Visible = false
+       mainFrame.Size = UDim2.new(0, GUI_WIDTH, 0, MINI_H)
+       toggleBtn.Text = "+"
+   else
+       lastTPLabel.Visible = true
+       scrollFrame.Visible = true
+       patch.Visible = true
+       mainFrame.Size = UDim2.new(0, GUI_WIDTH, 0, FULL_H)
+       toggleBtn.Text = "–"
+   end
+end)
+
+-- Drag
+local dragging = false
+local dragStart, startPos
+
+titleBar.InputBegan:Connect(function(input)
+   if input.UserInputType == Enum.UserInputType.MouseButton1 or
+      input.UserInputType == Enum.UserInputType.Touch then
+       dragging = true
+       dragStart = input.Position
+       startPos = mainFrame.Position
+   end
+end)
+
+titleBar.InputEnded:Connect(function(input)
+   if input.UserInputType == Enum.UserInputType.MouseButton1 or
+      input.UserInputType == Enum.UserInputType.Touch then
+       dragging = false
+   end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+   if dragging and (
+       input.UserInputType == Enum.UserInputType.MouseMovement or
+       input.UserInputType == Enum.UserInputType.Touch
+   ) then
+       local delta = input.Position - dragStart
+       mainFrame.Position = UDim2.new(
+           startPos.X.Scale, startPos.X.Offset + delta.X,
+           startPos.Y.Scale, startPos.Y.Offset + delta.Y
+       )
+   end
+end)
