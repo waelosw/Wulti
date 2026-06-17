@@ -5,7 +5,7 @@ local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 
 -- 🔒 GAME ID CHECK (comme Ohio script)
-local GAME_ID = 1234567890 -- <<<<<< METS ICI L'ID DE TON JEU
+local GAME_ID = 114697347887839
 
 if game.PlaceId ~= GAME_ID then
     local screenGui = Instance.new("ScreenGui")
