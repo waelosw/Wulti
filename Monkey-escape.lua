@@ -1,17 +1,49 @@
--- Loop TP Script (Delta Executor)
+-- Loop TP Script (avec vérification de jeu)
 
-local looping = false
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 
-local TARGET_CFRAME = CFrame.new(
-    -10661.78,
-    514.65,
-    -255.62
-)
+-- 🔒 GAME ID CHECK (comme Ohio script)
+local GAME_ID = 1234567890 -- <<<<<< METS ICI L'ID DE TON JEU
+
+if game.PlaceId ~= GAME_ID then
+    local screenGui = Instance.new("ScreenGui")
+    screenGui.Name = "WrongGame"
+    screenGui.ResetOnSpawn = false
+    screenGui.Parent = game.CoreGui
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 260, 0, 80)
+    frame.Position = UDim2.new(0.5, -130, 0.5, -40)
+    frame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    frame.BorderSizePixel = 0
+    frame.Parent = screenGui
+
+    Instance.new("UICorner", frame).CornerRadius = UDim.new(0,8)
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, -20, 1, 0)
+    label.Position = UDim2.new(0,10,0,0)
+    label.BackgroundTransparency = 1
+    label.Text = "❌ Ce script fonctionne\nuniquement dans le bon jeu !"
+    label.TextColor3 = Color3.fromRGB(255,80,80)
+    label.TextSize = 13
+    label.Font = Enum.Font.GothamBold
+    label.TextWrapped = true
+    label.Parent = frame
+
+    task.wait(4)
+    screenGui:Destroy()
+    return
+end
+
+-- 📍 POSITION TP
+local TARGET_CFRAME = CFrame.new(-10661.78, 514.65, -255.62)
 
 -- GUI
+local looping = false
+
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "LoopTP"
 screenGui.ResetOnSpawn = false
@@ -26,7 +58,7 @@ mainFrame.Parent = screenGui
 
 Instance.new("UICorner", mainFrame).CornerRadius = UDim.new(0,8)
 
--- Barre titre
+-- BARRE TITRE
 local titleBar = Instance.new("Frame")
 titleBar.Size = UDim2.new(1,0,0,30)
 titleBar.BackgroundColor3 = Color3.fromRGB(50,50,50)
@@ -35,29 +67,22 @@ titleBar.Parent = mainFrame
 
 Instance.new("UICorner", titleBar).CornerRadius = UDim.new(0,8)
 
-local patch = Instance.new("Frame")
-patch.Size = UDim2.new(1,0,0,10)
-patch.Position = UDim2.new(0,0,1,-10)
-patch.BackgroundColor3 = Color3.fromRGB(50,50,50)
-patch.BorderSizePixel = 0
-patch.Parent = titleBar
-
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1,0,1,0)
 titleLabel.BackgroundTransparency = 1
 titleLabel.Text = "🔵 Loop TP"
-titleLabel.TextColor3 = Color3.new(1,1,1)
+titleLabel.TextColor3 = Color3.fromRGB(255,255,255)
 titleLabel.TextSize = 14
 titleLabel.Font = Enum.Font.GothamBold
 titleLabel.Parent = titleBar
 
--- Bouton Loop TP
+-- LOOP BUTTON
 local startButton = Instance.new("TextButton")
 startButton.Size = UDim2.new(1,-20,0,30)
 startButton.Position = UDim2.new(0,10,0,40)
 startButton.BackgroundColor3 = Color3.fromRGB(0,170,255)
 startButton.Text = "▶️ Loop TP"
-startButton.TextColor3 = Color3.new(1,1,1)
+startButton.TextColor3 = Color3.fromRGB(255,255,255)
 startButton.TextSize = 13
 startButton.Font = Enum.Font.GothamBold
 startButton.BorderSizePixel = 0
@@ -65,13 +90,13 @@ startButton.Parent = mainFrame
 
 Instance.new("UICorner", startButton).CornerRadius = UDim.new(0,6)
 
--- Bouton Stop
+-- STOP BUTTON
 local stopButton = Instance.new("TextButton")
 stopButton.Size = UDim2.new(1,-20,0,30)
 stopButton.Position = UDim2.new(0,10,0,75)
 stopButton.BackgroundColor3 = Color3.fromRGB(0,200,100)
 stopButton.Text = "⏹️ Stop"
-stopButton.TextColor3 = Color3.new(1,1,1)
+stopButton.TextColor3 = Color3.fromRGB(255,255,255)
 stopButton.TextSize = 13
 stopButton.Font = Enum.Font.GothamBold
 stopButton.BorderSizePixel = 0
@@ -79,21 +104,7 @@ stopButton.Parent = mainFrame
 
 Instance.new("UICorner", stopButton).CornerRadius = UDim.new(0,6)
 
--- Bouton fermer (en haut à droite)
-local closeButton = Instance.new("TextButton")
-closeButton.Size = UDim2.new(0,24,0,24)
-closeButton.Position = UDim2.new(1,-28,0,3)
-closeButton.BackgroundColor3 = Color3.fromRGB(200,0,0)
-closeButton.Text = "X"
-closeButton.TextColor3 = Color3.new(1,1,1)
-closeButton.Font = Enum.Font.GothamBold
-closeButton.TextSize = 14
-closeButton.BorderSizePixel = 0
-closeButton.Parent = mainFrame
-
-Instance.new("UICorner", closeButton).CornerRadius = UDim.new(0,4)
-
--- Fonction TP
+-- TP FUNCTION
 local function teleportPlayer()
     local character = localPlayer.Character
     if character and character:FindFirstChild("HumanoidRootPart") then
@@ -101,12 +112,10 @@ local function teleportPlayer()
     end
 end
 
--- Start Loop
+-- LOOP START
 startButton.MouseButton1Click:Connect(function()
     if looping then return end
-
     looping = true
-    startButton.Text = "✅ Loop actif"
 
     task.spawn(function()
         while looping do
@@ -116,46 +125,33 @@ startButton.MouseButton1Click:Connect(function()
     end)
 end)
 
--- Stop Loop
+-- LOOP STOP
 stopButton.MouseButton1Click:Connect(function()
     looping = false
-    startButton.Text = "▶️ Loop TP"
 end)
 
--- Fermer UI
-closeButton.MouseButton1Click:Connect(function()
-    looping = false
-    screenGui:Destroy()
-end)
-
--- Drag PC + Mobile
+-- DRAG
 local dragging = false
-local dragStart
-local startPos
+local dragStart, startPos
 
-local function onInputBegan(input)
+titleBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1
     or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = mainFrame.Position
     end
-end
+end)
 
-local function onInputEnded(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1
-    or input.UserInputType == Enum.UserInputType.Touch then
-        dragging = false
-    end
-end
+titleBar.InputEnded:Connect(function()
+    dragging = false
+end)
 
-local function onInputChanged(input)
-    if dragging and (
-        input.UserInputType == Enum.UserInputType.MouseMovement
-        or input.UserInputType == Enum.UserInputType.Touch
-    ) then
+UserInputService.InputChanged:Connect(function(input)
+    if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement
+    or input.UserInputType == Enum.UserInputType.Touch) then
+
         local delta = input.Position - dragStart
-
         mainFrame.Position = UDim2.new(
             startPos.X.Scale,
             startPos.X.Offset + delta.X,
@@ -163,8 +159,4 @@ local function onInputChanged(input)
             startPos.Y.Offset + delta.Y
         )
     end
-end
-
-titleBar.InputBegan:Connect(onInputBegan)
-titleBar.InputEnded:Connect(onInputEnded)
-UserInputService.InputChanged:Connect(onInputChanged)
+end)
