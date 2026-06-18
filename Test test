@@ -75,9 +75,9 @@ local originalPrize2CFrame    = nil
 local center = Vector3.new(959.16, 475.11, 438.91)
 
 local GUN_LOCKER_TARGET = Vector3.new(995.73, 475.62, 443.47)  -- Y légèrement augmenté
-local CRAFTING_TARGET   = Vector3.new(995.94, 475.12, 428.76)
-local PRIZE1_TARGET     = Vector3.new(996.86, 475.12, 453.20)
-local PRIZE2_TARGET     = Vector3.new(991.72, 475.12, 458.73)
+local CRAFTING_TARGET   = Vector3.new(989.77, 475.12, 456.68)
+local PRIZE1_TARGET     = Vector3.new(994.86, 475.12, 425.01)
+local PRIZE2_TARGET     = Vector3.new(988.44, 475.12, 425.29)
 
 local weaponList = {
    {name = "M4A1",          pos = Vector3.new(960.41, 475.11, 457.99)},
@@ -327,12 +327,12 @@ local function activateSetup(btn)
        pcall(moveObject, gunLocker, GUN_LOCKER_TARGET)
    end
 
-   -- Crafting Station (rotation 80° vers la gauche = +80° sur Y)
+   -- Crafting Station
    local crafting = findCraftingStation()
    if crafting then
        local cf = getObjectCFrame(crafting)
        if cf then originalCraftingCFrame = cf end
-       pcall(moveObject, crafting, CRAFTING_TARGET, math.rad(80))
+       pcall(moveObject, crafting, CRAFTING_TARGET)
    end
 
    -- Prizes (deux objets)
