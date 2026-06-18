@@ -61,14 +61,17 @@ local colors = {
 }
 
 -- ============================================
--- SETUP : SOL + ARMES
+-- SETUP : SOL + ARMES + GUN LOCKER
 -- ============================================
 
 local setupActive = false
 local originalFloorPos = nil
 local originalWeaponCFrames = {}
+local originalGunLockerCFrame = nil  -- NOUVEAU
 
 local center = Vector3.new(959.16, 475.11, 438.91)
+
+local GUN_LOCKER_TARGET = Vector3.new(995.73, 475.12, 443.47)  -- NOUVEAU
 
 local weaponList = {
    {name = "M4A1",          pos = Vector3.new(960.41, 475.11, 457.99)},
@@ -86,6 +89,25 @@ local weaponList = {
    {name = "AWP",           pos = Vector3.new(981.82, 475.11, 419.70)},
    {name = "Acid Gun",      pos = Vector3.new(992.51, 475.11, 420.24)},
 }
+
+-- NOUVEAU : Trouve le Gun Locker dans workspace/Lockers
+local function findGunLocker()
+   local lockers = workspace:FindFirstChild("Lockers")
+   if lockers then
+       for _, child in ipairs(lockers:GetChildren()) do
+           if child.Name == "Gun Locker" then
+               return child
+           end
+       end
+   end
+   -- Fallback : recherche globale
+   for _, obj in ipairs(workspace:GetDescendants()) do
+       if obj.Name == "Gun Locker" then
+           return obj
+       end
+   end
+   return nil
+end
 
 local function findFloor()
    for _, obj in ipairs(workspace:GetDescendants()) do
@@ -176,11 +198,14 @@ local function restoreWeapon(obj, cf)
 end
 
 local function activateSetup(btn)
+   -- Sol
    local floor = findFloor()
    if floor then
        originalFloorPos = floor.Position
        floor.Position = Vector3.new(963.71, 471.11, 439.59)
    end
+
+   -- Armes
    originalWeaponCFrames = {}
    for _, weapon in ipairs(weaponList) do
        local obj = findInItemsOnSale(weapon.name)
@@ -190,16 +215,48 @@ local function activateSetup(btn)
            pcall(moveWeapon, obj, weapon.pos)
        end
    end
+
+   -- NOUVEAU : Gun Locker
+   local gunLocker = findGunLocker()
+   if gunLocker then
+       local cf = getObjectCFrame(gunLocker)
+       if cf then originalGunLockerCFrame = cf end
+       pcall(function()
+           if gunLocker:IsA("Model") and gunLocker.PrimaryPart then
+               gunLocker:SetPrimaryPartCFrame(CFrame.new(GUN_LOCKER_TARGET))
+           elseif gunLocker:IsA("Model") then
+               -- Déplace tous les parts par offset
+               local firstPart = nil
+               for _, p in ipairs(gunLocker:GetDescendants()) do
+                   if p:IsA("BasePart") then firstPart = p; break end
+               end
+               if firstPart then
+                   local offset = GUN_LOCKER_TARGET - firstPart.Position
+                   for _, p in ipairs(gunLocker:GetDescendants()) do
+                       if p:IsA("BasePart") then
+                           p.CFrame = CFrame.new(p.Position + offset)
+                       end
+                   end
+               end
+           elseif gunLocker:IsA("BasePart") then
+               gunLocker.Position = GUN_LOCKER_TARGET
+           end
+       end)
+   end
+
    setupActive = true
    btn.Text = "✅"
    btn.BackgroundColor3 = Color3.fromRGB(0, 180, 80)
 end
 
 local function deactivateSetup(btn)
+   -- Sol
    local floor = findFloor()
    if floor and originalFloorPos then
        floor.Position = originalFloorPos
    end
+
+   -- Armes
    for _, weapon in ipairs(weaponList) do
        local obj = findInItemsOnSale(weapon.name)
        local savedCF = originalWeaponCFrames[weapon.name]
@@ -209,10 +266,40 @@ local function deactivateSetup(btn)
    end
    originalWeaponCFrames = {}
    originalFloorPos = nil
+
+   -- NOUVEAU : Restore Gun Locker
+   if originalGunLockerCFrame then
+       local gunLocker = findGunLocker()
+       if gunLocker then
+           pcall(function()
+               if gunLocker:IsA("Model") and gunLocker.PrimaryPart then
+                   gunLocker:SetPrimaryPartCFrame(originalGunLockerCFrame)
+               elseif gunLocker:IsA("Model") then
+                   local firstPart = nil
+                   for _, p in ipairs(gunLocker:GetDescendants()) do
+                       if p:IsA("BasePart") then firstPart = p; break end
+                   end
+                   if firstPart then
+                       local offset = originalGunLockerCFrame.Position - firstPart.Position
+                       for _, p in ipairs(gunLocker:GetDescendants()) do
+                           if p:IsA("BasePart") then
+                               p.CFrame = CFrame.new(p.Position + offset)
+                           end
+                       end
+                   end
+               elseif gunLocker:IsA("BasePart") then
+                   gunLocker.CFrame = originalGunLockerCFrame
+               end
+           end)
+       end
+       originalGunLockerCFrame = nil
+   end
+
    setupActive = false
    btn.Text = "⬜"
    btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 end
+
 
 -- ============================================
 -- GUI
