@@ -61,19 +61,19 @@ local colors = {
 }
 
 -- ============================================
--- SETUP : SOL + ARMES + GUN LOCKER
+-- SETUP : SOL + ARMES + GUN LOCKER + CRAFTING
 -- ============================================
 
 local setupActive = false
 local originalFloorPos = nil
 local originalWeaponCFrames = {}
 local originalGunLockerCFrame = nil
-local originalCraftingStationCFrame = nil  -- NOUVEAU
+local originalCraftingCFrame  = nil
 
 local center = Vector3.new(959.16, 475.11, 438.91)
 
-local GUN_LOCKER_TARGET = Vector3.new(995.73, 475.20, 443.47)
-local CRAFTING_TARGET = Vector3.new(995.94, 475.12, 428.76)
+local GUN_LOCKER_TARGET = Vector3.new(995.73, 475.62, 443.47)  -- Y légèrement augmenté
+local CRAFTING_TARGET   = Vector3.new(995.94, 475.12, 428.76)
 
 local weaponList = {
    {name = "M4A1",          pos = Vector3.new(960.41, 475.11, 457.99)},
@@ -92,41 +92,34 @@ local weaponList = {
    {name = "Acid Gun",      pos = Vector3.new(992.51, 475.11, 420.24)},
 }
 
--- NOUVEAU : Trouve le Gun Locker dans workspace/Lockers
-local function findCraftingStation4()
-    local serverFurniture = workspace:FindFirstChild("ServerFurniture")
-    if not serverFurniture then
-        return nil
-    end
-
-    for _, model in ipairs(serverFurniture:GetChildren()) do
-
-        local hasPrompt = false
-        local cubeCount = 0
-
-        for _, obj in ipairs(model:GetDescendants()) do
-
-            if obj:IsA("ProximityPrompt") then
-                hasPrompt = true
-            end
-
-            if string.find(string.lower(obj.Name), "craftingstation4_cube") then
-                cubeCount += 1
-            end
-
-        end
-
-        if hasPrompt and cubeCount >= 3 then
-            return model
-        end
-    end
-
-    return nil
-end
-   -- Fallback : recherche globale
+-- Trouve le Gun Locker dans workspace/Lockers
+local function findGunLocker()
+   local lockers = workspace:FindFirstChild("Lockers")
+   if lockers then
+       for _, child in ipairs(lockers:GetChildren()) do
+           if child.Name == "Gun Locker" then return child end
+       end
+   end
    for _, obj in ipairs(workspace:GetDescendants()) do
-       if obj.Name == "Gun Locker" then
-           return obj
+       if obj.Name == "Gun Locker" then return obj end
+   end
+   return nil
+end
+
+-- Trouve la crafting station dans ServerFurniture (ProximityPrompt + mesh craftingstation4)
+local function findCraftingStation()
+   local sf = workspace:FindFirstChild("ServerFurniture")
+   if not sf then return nil end
+   for _, obj in ipairs(sf:GetDescendants()) do
+       if (obj:IsA("Model") or obj:IsA("BasePart")) and obj:FindFirstChildWhichIsA("ProximityPrompt", true) then
+           local hasMesh = false
+           for _, desc in ipairs(obj:GetDescendants()) do
+               if desc:IsA("SpecialMesh") and desc.MeshId and desc.MeshId:find("craftingstation4") then
+                   hasMesh = true
+                   break
+               end
+           end
+           if hasMesh then return obj end
        end
    end
    return nil
@@ -160,6 +153,18 @@ local function findInItemsOnSale(name)
    return nil
 end
 
+local function getObjectCFrame(obj)
+   if obj:IsA("Model") then
+       if obj.PrimaryPart then return obj.PrimaryPart.CFrame end
+       for _, p in ipairs(obj:GetDescendants()) do
+           if p:IsA("BasePart") then return p.CFrame end
+       end
+   elseif obj:IsA("BasePart") then
+       return obj.CFrame
+   end
+   return nil
+end
+
 local function moveWeapon(obj, position)
    local lookDir = (position - center)
    if lookDir.Magnitude > 0 then lookDir = lookDir.Unit end
@@ -186,16 +191,30 @@ local function moveWeapon(obj, position)
    end
 end
 
-local function getObjectCFrame(obj)
+-- Déplace un objet (Model ou BasePart) vers une position cible
+local function moveObject(obj, targetPos)
    if obj:IsA("Model") then
-       if obj.PrimaryPart then return obj.PrimaryPart.CFrame end
-       for _, p in ipairs(obj:GetDescendants()) do
-           if p:IsA("BasePart") then return p.CFrame end
+       if obj.PrimaryPart then
+           local cf = obj.PrimaryPart.CFrame
+           local rx, ry, rz = cf:ToEulerAnglesXYZ()
+           obj:SetPrimaryPartCFrame(CFrame.new(targetPos) * CFrame.Angles(rx, ry, rz))
+       else
+           local firstPart = nil
+           for _, p in ipairs(obj:GetDescendants()) do
+               if p:IsA("BasePart") then firstPart = p; break end
+           end
+           if firstPart then
+               local offset = targetPos - firstPart.Position
+               for _, p in ipairs(obj:GetDescendants()) do
+                   if p:IsA("BasePart") then
+                       p.CFrame = CFrame.new(p.Position + offset)
+                   end
+               end
+           end
        end
    elseif obj:IsA("BasePart") then
-       return obj.CFrame
+       obj.Position = targetPos
    end
-   return nil
 end
 
 local function restoreWeapon(obj, cf)
@@ -220,6 +239,30 @@ local function restoreWeapon(obj, cf)
    end
 end
 
+-- Restaure un objet à sa CFrame d'origine
+local function restoreObject(obj, savedCF)
+   if obj:IsA("Model") then
+       if obj.PrimaryPart then
+           obj:SetPrimaryPartCFrame(savedCF)
+       else
+           local firstPart = nil
+           for _, p in ipairs(obj:GetDescendants()) do
+               if p:IsA("BasePart") then firstPart = p; break end
+           end
+           if firstPart then
+               local offset = savedCF.Position - firstPart.Position
+               for _, p in ipairs(obj:GetDescendants()) do
+                   if p:IsA("BasePart") then
+                       p.CFrame = CFrame.new(p.Position + offset)
+                   end
+               end
+           end
+       end
+   elseif obj:IsA("BasePart") then
+       obj.CFrame = savedCF
+   end
+end
+
 local function activateSetup(btn)
    -- Sol
    local floor = findFloor()
@@ -239,81 +282,22 @@ local function activateSetup(btn)
        end
    end
 
-   -- NOUVEAU : Gun Locker
+   -- Gun Locker
    local gunLocker = findGunLocker()
    if gunLocker then
        local cf = getObjectCFrame(gunLocker)
        if cf then originalGunLockerCFrame = cf end
-       pcall(function()
-           if gunLocker:IsA("Model") and gunLocker.PrimaryPart then
-               gunLocker:SetPrimaryPartCFrame(CFrame.new(GUN_LOCKER_TARGET))
-           elseif gunLocker:IsA("Model") then
-               -- Déplace tous les parts par offset
-               local firstPart = nil
-               for _, p in ipairs(gunLocker:GetDescendants()) do
-                   if p:IsA("BasePart") then firstPart = p; break end
-               end
-               if firstPart then
-                   local offset = GUN_LOCKER_TARGET - firstPart.Position
-                   for _, p in ipairs(gunLocker:GetDescendants()) do
-                       if p:IsA("BasePart") then
-                           p.CFrame = CFrame.new(p.Position + offset)
-                       end
-                   end
-               end
-           elseif gunLocker:IsA("BasePart") then
-               gunLocker.Position = GUN_LOCKER_TARGET
-           end
-       end)
+       pcall(moveObject, gunLocker, GUN_LOCKER_TARGET)
    end
 
-local craftingStation = findCraftingStation4()
+   -- Crafting Station
+   local crafting = findCraftingStation()
+   if crafting then
+       local cf = getObjectCFrame(crafting)
+       if cf then originalCraftingCFrame = cf end
+       pcall(moveObject, crafting, CRAFTING_TARGET)
+   end
 
-if craftingStation then
-
-    local cf = getObjectCFrame(craftingStation)
-
-    if cf then
-        originalCraftingStationCFrame = cf
-    end
-
-    pcall(function()
-
-        if craftingStation:IsA("Model") and craftingStation.PrimaryPart then
-
-            craftingStation:SetPrimaryPartCFrame(
-                CFrame.new(CRAFTING_TARGET)
-            )
-
-        else
-
-            local firstPart
-
-            for _, p in ipairs(craftingStation:GetDescendants()) do
-                if p:IsA("BasePart") then
-                    firstPart = p
-                    break
-                end
-            end
-
-            if firstPart then
-
-                local offset =
-                    CRAFTING_TARGET - firstPart.Position
-
-                for _, p in ipairs(craftingStation:GetDescendants()) do
-                    if p:IsA("BasePart") then
-                        p.CFrame =
-                            CFrame.new(p.Position + offset)
-                    end
-                end
-
-            end
-        end
-
-    end)
-
-end
    setupActive = true
    btn.Text = "✅"
    btn.BackgroundColor3 = Color3.fromRGB(0, 180, 80)
@@ -337,89 +321,28 @@ local function deactivateSetup(btn)
    originalWeaponCFrames = {}
    originalFloorPos = nil
 
-   -- NOUVEAU : Restore Gun Locker
+   -- Gun Locker
    if originalGunLockerCFrame then
        local gunLocker = findGunLocker()
        if gunLocker then
-           pcall(function()
-               if gunLocker:IsA("Model") and gunLocker.PrimaryPart then
-                   gunLocker:SetPrimaryPartCFrame(originalGunLockerCFrame)
-               elseif gunLocker:IsA("Model") then
-                   local firstPart = nil
-                   for _, p in ipairs(gunLocker:GetDescendants()) do
-                       if p:IsA("BasePart") then firstPart = p; break end
-                   end
-                   if firstPart then
-                       local offset = originalGunLockerCFrame.Position - firstPart.Position
-                       for _, p in ipairs(gunLocker:GetDescendants()) do
-                           if p:IsA("BasePart") then
-                               p.CFrame = CFrame.new(p.Position + offset)
-                           end
-                       end
-                   end
-               elseif gunLocker:IsA("BasePart") then
-                   gunLocker.CFrame = originalGunLockerCFrame
-               end
-           end)
+           pcall(restoreObject, gunLocker, originalGunLockerCFrame)
        end
        originalGunLockerCFrame = nil
    end
 
-if originalCraftingStationCFrame then
+   -- Crafting Station
+   if originalCraftingCFrame then
+       local crafting = findCraftingStation()
+       if crafting then
+           pcall(restoreObject, crafting, originalCraftingCFrame)
+       end
+       originalCraftingCFrame = nil
+   end
 
-    local craftingStation = findCraftingStation4()
-
-    if craftingStation then
-
-        pcall(function()
-
-            if craftingStation:IsA("Model")
-               and craftingStation.PrimaryPart then
-
-                craftingStation:SetPrimaryPartCFrame(
-                    originalCraftingStationCFrame
-                )
-
-            else
-
-                local firstPart
-
-                for _, p in ipairs(craftingStation:GetDescendants()) do
-                    if p:IsA("BasePart") then
-                        firstPart = p
-                        break
-                    end
-                end
-
-                if firstPart then
-
-                    local offset =
-                        originalCraftingStationCFrame.Position
-                        - firstPart.Position
-
-                    for _, p in ipairs(craftingStation:GetDescendants()) do
-                        if p:IsA("BasePart") then
-                            p.CFrame =
-                                CFrame.new(p.Position + offset)
-                        end
-                    end
-
-                end
-
-            end
-
-        end)
-
-    end
-
-    originalCraftingStationCFrame = nil
-
-end
    setupActive = false
    btn.Text = "⬜"
    btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 end
-
 
 -- ============================================
 -- GUI
@@ -484,7 +407,7 @@ titleLabel.Font = Enum.Font.GothamBold
 titleLabel.TextXAlignment = Enum.TextXAlignment.Left
 titleLabel.Parent = titleBar
 
--- Bouton 🔫 TP Armes (noir) 
+-- Bouton 🔫 TP Armes (noir)
 local armeBtn = Instance.new("TextButton")
 armeBtn.Size = UDim2.new(0, 24, 0, 24)
 armeBtn.Position = UDim2.new(1, -90, 0.5, -12)
