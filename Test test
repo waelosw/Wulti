@@ -69,11 +69,15 @@ local originalFloorPos = nil
 local originalWeaponCFrames = {}
 local originalGunLockerCFrame = nil
 local originalCraftingCFrame  = nil
+local originalPrize1CFrame    = nil
+local originalPrize2CFrame    = nil
 
 local center = Vector3.new(959.16, 475.11, 438.91)
 
 local GUN_LOCKER_TARGET = Vector3.new(995.73, 475.62, 443.47)  -- Y légèrement augmenté
 local CRAFTING_TARGET   = Vector3.new(995.94, 475.12, 428.76)
+local PRIZE1_TARGET     = Vector3.new(996.86, 475.12, 453.20)
+local PRIZE2_TARGET     = Vector3.new(991.72, 475.12, 458.73)
 
 local weaponList = {
    {name = "M4A1",          pos = Vector3.new(960.41, 475.11, 457.99)},
@@ -125,6 +129,35 @@ local function findCraftingStation()
        end
    end
    return nil
+end
+
+-- Trouve les deux objets "Prizes" (remonte au Model parent)
+local function findPrizes()
+   local found = {}
+   for _, obj in ipairs(workspace:GetDescendants()) do
+       if obj.Name == "Prizes" then
+           -- Remonte au Model parent
+           local current = obj.Parent
+           local target = obj
+           while current and current ~= workspace do
+               if current:IsA("Model") then
+                   target = current
+                   break
+               end
+               current = current.Parent
+           end
+           -- Évite les doublons
+           local alreadyIn = false
+           for _, v in ipairs(found) do
+               if v == target then alreadyIn = true; break end
+           end
+           if not alreadyIn then
+               table.insert(found, target)
+           end
+           if #found >= 2 then break end
+       end
+   end
+   return found[1], found[2]
 end
 
 local function findFloor()
@@ -194,12 +227,14 @@ local function moveWeapon(obj, position)
 end
 
 -- Déplace un objet (Model ou BasePart) vers une position cible
-local function moveObject(obj, targetPos)
+-- extraRotY : rotation Y supplémentaire en radians (optionnel)
+local function moveObject(obj, targetPos, extraRotY)
+   extraRotY = extraRotY or 0
    if obj:IsA("Model") then
        if obj.PrimaryPart then
            local cf = obj.PrimaryPart.CFrame
            local rx, ry, rz = cf:ToEulerAnglesXYZ()
-           obj:SetPrimaryPartCFrame(CFrame.new(targetPos) * CFrame.Angles(rx, ry, rz))
+           obj:SetPrimaryPartCFrame(CFrame.new(targetPos) * CFrame.Angles(rx, ry + extraRotY, rz))
        else
            local firstPart = nil
            for _, p in ipairs(obj:GetDescendants()) do
@@ -215,7 +250,7 @@ local function moveObject(obj, targetPos)
            end
        end
    elseif obj:IsA("BasePart") then
-       obj.Position = targetPos
+       obj.CFrame = CFrame.new(targetPos) * CFrame.Angles(0, extraRotY, 0)
    end
 end
 
@@ -292,12 +327,25 @@ local function activateSetup(btn)
        pcall(moveObject, gunLocker, GUN_LOCKER_TARGET)
    end
 
-   -- Crafting Station
+   -- Crafting Station (rotation 80° vers la gauche = +80° sur Y)
    local crafting = findCraftingStation()
    if crafting then
        local cf = getObjectCFrame(crafting)
        if cf then originalCraftingCFrame = cf end
-       pcall(moveObject, crafting, CRAFTING_TARGET)
+       pcall(moveObject, crafting, CRAFTING_TARGET, math.rad(80))
+   end
+
+   -- Prizes (deux objets)
+   local prize1, prize2 = findPrizes()
+   if prize1 then
+       local cf = getObjectCFrame(prize1)
+       if cf then originalPrize1CFrame = cf end
+       pcall(moveObject, prize1, PRIZE1_TARGET)
+   end
+   if prize2 then
+       local cf = getObjectCFrame(prize2)
+       if cf then originalPrize2CFrame = cf end
+       pcall(moveObject, prize2, PRIZE2_TARGET)
    end
 
    setupActive = true
@@ -339,6 +387,17 @@ local function deactivateSetup(btn)
            pcall(restoreObject, crafting, originalCraftingCFrame)
        end
        originalCraftingCFrame = nil
+   end
+
+   -- Prizes
+   local prize1, prize2 = findPrizes()
+   if originalPrize1CFrame and prize1 then
+       pcall(restoreObject, prize1, originalPrize1CFrame)
+       originalPrize1CFrame = nil
+   end
+   if originalPrize2CFrame and prize2 then
+       pcall(restoreObject, prize2, originalPrize2CFrame)
+       originalPrize2CFrame = nil
    end
 
    setupActive = false
