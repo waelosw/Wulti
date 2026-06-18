@@ -106,20 +106,22 @@ local function findGunLocker()
    return nil
 end
 
--- Trouve la crafting station dans ServerFurniture (ProximityPrompt + mesh craftingstation4)
+-- Trouve la crafting station : cherche n'importe quel objet dont le nom
+-- commence par "Meshes/craftingstation4_Cube" et remonte au Model parent
 local function findCraftingStation()
-   local sf = workspace:FindFirstChild("ServerFurniture")
-   if not sf then return nil end
-   for _, obj in ipairs(sf:GetDescendants()) do
-       if (obj:IsA("Model") or obj:IsA("BasePart")) and obj:FindFirstChildWhichIsA("ProximityPrompt", true) then
-           local hasMesh = false
-           for _, desc in ipairs(obj:GetDescendants()) do
-               if desc:IsA("SpecialMesh") and desc.MeshId and desc.MeshId:find("craftingstation4") then
-                   hasMesh = true
-                   break
+   local prefix = "Meshes/craftingstation4_Cube"
+   for _, obj in ipairs(workspace:GetDescendants()) do
+       if string.sub(obj.Name, 1, #prefix) == prefix then
+           -- Remonte jusqu'à trouver un Model
+           local current = obj.Parent
+           while current and current ~= workspace do
+               if current:IsA("Model") then
+                   return current
                end
+               current = current.Parent
            end
-           if hasMesh then return obj end
+           -- Fallback : parent direct
+           return obj.Parent
        end
    end
    return nil
