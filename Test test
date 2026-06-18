@@ -67,11 +67,13 @@ local colors = {
 local setupActive = false
 local originalFloorPos = nil
 local originalWeaponCFrames = {}
-local originalGunLockerCFrame = nil  -- NOUVEAU
+local originalGunLockerCFrame = nil
+local originalCraftingStationCFrame = nil  -- NOUVEAU
 
 local center = Vector3.new(959.16, 475.11, 438.91)
 
-local GUN_LOCKER_TARGET = Vector3.new(995.73, 475.12, 443.47)  -- NOUVEAU
+local GUN_LOCKER_TARGET = Vector3.new(995.73, 475.20, 443.47)
+local CRAFTING_TARGET = Vector3.new(995.94, 475.12, 428.76)
 
 local weaponList = {
    {name = "M4A1",          pos = Vector3.new(960.41, 475.11, 457.99)},
@@ -91,15 +93,36 @@ local weaponList = {
 }
 
 -- NOUVEAU : Trouve le Gun Locker dans workspace/Lockers
-local function findGunLocker()
-   local lockers = workspace:FindFirstChild("Lockers")
-   if lockers then
-       for _, child in ipairs(lockers:GetChildren()) do
-           if child.Name == "Gun Locker" then
-               return child
-           end
-       end
-   end
+local function findCraftingStation4()
+    local serverFurniture = workspace:FindFirstChild("ServerFurniture")
+    if not serverFurniture then
+        return nil
+    end
+
+    for _, model in ipairs(serverFurniture:GetChildren()) do
+
+        local hasPrompt = false
+        local cubeCount = 0
+
+        for _, obj in ipairs(model:GetDescendants()) do
+
+            if obj:IsA("ProximityPrompt") then
+                hasPrompt = true
+            end
+
+            if string.find(string.lower(obj.Name), "craftingstation4_cube") then
+                cubeCount += 1
+            end
+
+        end
+
+        if hasPrompt and cubeCount >= 3 then
+            return model
+        end
+    end
+
+    return nil
+end
    -- Fallback : recherche globale
    for _, obj in ipairs(workspace:GetDescendants()) do
        if obj.Name == "Gun Locker" then
@@ -244,6 +267,53 @@ local function activateSetup(btn)
        end)
    end
 
+local craftingStation = findCraftingStation4()
+
+if craftingStation then
+
+    local cf = getObjectCFrame(craftingStation)
+
+    if cf then
+        originalCraftingStationCFrame = cf
+    end
+
+    pcall(function()
+
+        if craftingStation:IsA("Model") and craftingStation.PrimaryPart then
+
+            craftingStation:SetPrimaryPartCFrame(
+                CFrame.new(CRAFTING_TARGET)
+            )
+
+        else
+
+            local firstPart
+
+            for _, p in ipairs(craftingStation:GetDescendants()) do
+                if p:IsA("BasePart") then
+                    firstPart = p
+                    break
+                end
+            end
+
+            if firstPart then
+
+                local offset =
+                    CRAFTING_TARGET - firstPart.Position
+
+                for _, p in ipairs(craftingStation:GetDescendants()) do
+                    if p:IsA("BasePart") then
+                        p.CFrame =
+                            CFrame.new(p.Position + offset)
+                    end
+                end
+
+            end
+        end
+
+    end)
+
+end
    setupActive = true
    btn.Text = "✅"
    btn.BackgroundColor3 = Color3.fromRGB(0, 180, 80)
@@ -295,6 +365,56 @@ local function deactivateSetup(btn)
        originalGunLockerCFrame = nil
    end
 
+if originalCraftingStationCFrame then
+
+    local craftingStation = findCraftingStation4()
+
+    if craftingStation then
+
+        pcall(function()
+
+            if craftingStation:IsA("Model")
+               and craftingStation.PrimaryPart then
+
+                craftingStation:SetPrimaryPartCFrame(
+                    originalCraftingStationCFrame
+                )
+
+            else
+
+                local firstPart
+
+                for _, p in ipairs(craftingStation:GetDescendants()) do
+                    if p:IsA("BasePart") then
+                        firstPart = p
+                        break
+                    end
+                end
+
+                if firstPart then
+
+                    local offset =
+                        originalCraftingStationCFrame.Position
+                        - firstPart.Position
+
+                    for _, p in ipairs(craftingStation:GetDescendants()) do
+                        if p:IsA("BasePart") then
+                            p.CFrame =
+                                CFrame.new(p.Position + offset)
+                        end
+                    end
+
+                end
+
+            end
+
+        end)
+
+    end
+
+    originalCraftingStationCFrame = nil
+
+end
    setupActive = false
    btn.Text = "⬜"
    btn.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
