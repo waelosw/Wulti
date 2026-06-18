@@ -1,5 +1,6 @@
 -- OHIO TP + SETUP Script (Mobile + PC)
 local UserInputService = game:GetService("UserInputService")
+local TweenService    = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local localPlayer = Players.LocalPlayer
 
@@ -591,20 +592,34 @@ for i, dest in ipairs(destinations) do
    end)
 end
 
+local tweenInfo = TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
 toggleBtn.MouseButton1Click:Connect(function()
    isMinimized = not isMinimized
    if isMinimized then
+       -- Cache d'abord le contenu
        lastTPLabel.Visible = false
        scrollFrame.Visible = false
        patch.Visible = false
-       mainFrame.Size = UDim2.new(0, GUI_WIDTH, 0, MINI_H)
        toggleBtn.Text = "+"
+       -- Animation fermeture
+       local tween = TweenService:Create(mainFrame, tweenInfo, {
+           Size = UDim2.new(0, GUI_WIDTH, 0, MINI_H)
+       })
+       tween:Play()
    else
-       lastTPLabel.Visible = true
-       scrollFrame.Visible = true
-       patch.Visible = true
-       mainFrame.Size = UDim2.new(0, GUI_WIDTH, 0, FULL_H)
        toggleBtn.Text = "–"
+       -- Animation ouverture
+       local tween = TweenService:Create(mainFrame, tweenInfo, {
+           Size = UDim2.new(0, GUI_WIDTH, 0, FULL_H)
+       })
+       tween:Play()
+       -- Affiche le contenu une fois l'animation terminée
+       tween.Completed:Connect(function()
+           lastTPLabel.Visible = true
+           scrollFrame.Visible = true
+           patch.Visible = true
+       end)
    end
 end)
 
